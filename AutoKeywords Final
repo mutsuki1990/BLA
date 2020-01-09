@@ -1,0 +1,262 @@
+import docx2txt
+from summa import keywords
+import os
+import re
+import urllib.request
+import time
+from bs4 import BeautifulSoup
+import requests
+import datetime
+print ("------------------------------------------------------------")
+print ("Auto Keywords V0.80 By kinoko")
+print ("------------------------------------------------------------")
+def Read_Dictionary(File_Path):
+    Temp = open(File_Path,'r')
+    Temp_Dictionary = Temp.readlines()
+    Dic = []
+    for each in Temp_Dictionary:
+        TempElement = each[0:-1]
+        Dic.append(TempElement)
+    return Dic
+
+def Notification(Title,Content):
+    api = "https://sc.ftqq.com/SCU76107Tca7efaf0f8233d327b6feb4e9582ab295e128e5cc0886.send"
+    NotificationTitle = Title
+    NotificationContent = Content
+    data = {
+            "text":NotificationTitle,
+            "desp":NotificationContent
+            }
+    requests.post(api, params=data, timeout=10)
+    print("Notification Sent to Wechat")
+    Msg = "S"
+    return Msg
+
+def Get_Numbers(Input_Html):
+    TempT = str(Input_Html)
+    Strong1 = TempT.find("<strong>")
+    Strong2 = TempT.find("</strong>")
+    RawNumber = re.sub("<strong>","",TempT[Strong1-1:Strong2])
+    FinalNumber =0
+    if RawNumber.find(",")>-1:
+        FinalNumber = int(re.sub(",","",RawNumber))
+    else:
+        FinalNumber = int(RawNumber)
+    return FinalNumber
+
+def Search_Hits(FilePath,queryStr):
+    if queryStr.find(" ")>-1:
+        TempStr = queryStr.split()
+        TempStr2 = ""
+        for each in TempStr:
+            TempStr2 = TempStr2 + each + "+"
+        InStrFinal = str(TempStr2[0:-1])
+    else:
+        InStrFinal = queryStr   
+    url = 'https://link.springer.com/search?query=' + InStrFinal
+    Retry = 1
+    html_code = "None"
+    Hits = 0
+    RetryTime = 0
+    SleepCount = 0
+    while Retry ==1:
+        print ("Pending Communication to Springer")
+        j = 1
+        while j <11:
+                time.sleep(1)
+                print("Connect Springer in %d second(s)" %(11-j))
+                j+= 1
+        try:
+            print ("Connecting Springer, Keyword is", InStrFinal)
+            TimeBefore = datetime.datetime.now()
+            request = urllib.request.Request(url)
+            request.add_header("user-agent","Mozilla/0.5")
+            response_obj = urllib.request.urlopen(request,timeout = 180)
+            ConnectionStatus = response_obj.getcode()
+            print(ConnectionStatus)
+            html_code = response_obj.read().decode('utf-8')
+            soup = BeautifulSoup(html_code,'lxml')
+            CountsDetected1 = soup.findAll(name='h1', attrs={"id":"number-of-search-results-and-search-terms"})
+            CountsDetected = Get_Numbers(CountsDetected1)
+            Timeafter = datetime.datetime.now()
+            TotalTimeConsumed = Timeafter - TimeBefore
+            print("Successful, %d Hits, Time consumed %d second(s)" %(CountsDetected,TotalTimeConsumed.seconds))
+            Retry =0
+            Hits = CountsDetected
+            break
+        except Exception as e:
+            print("Failed")
+            Retry =1
+            i = 1
+            j = 1
+            RetryTime +=1
+            print("Retried Time", RetryTime)
+            if SleepCount<3:         
+                if RetryTime <4:
+                    while i <11:
+                        time.sleep(1)
+                        print("Retry in %d second(s)" %(11-i))
+                        i+= 1
+                    continue
+                else:
+                    print("Program turn to sleep mode, reactivate in 300s")
+                    InfoSleep = "Program  already  turned  into  sleepmode \n\n Stop at  " + FilePath +"\n\n Current  keyword  is " + queryStr
+                    X = Notification("Time  Out  Too  Many", InfoSleep)
+                    SleepCount +=1
+                    while j <11:
+                        time.sleep(30)
+                        print("Restart in %d second(s)" %(30*(11-j)))
+                        j+= 1
+                    InfoRestart = "Program  restarted  after  300  seconds  cooldown\n\n Resuming  processing " + FilePath
+                    Y = Notification("Restarted  From  Sleep", InfoRestart)
+                    print("Program Restarting")
+                    RetryTime = 0
+                    continue
+            else:
+                Hits = -1
+                InfoBreak = "Break  and  Continue  To  the  Next \n\n Breakpoint  is " + queryStr
+                Z= Notification("Break...",InfoBreak)
+                break
+    return Hits
+
+
+CustomizedDictionary= Read_Dictionary("E:\Customized Dictionary\\test.txt")
+
+PathPrefix = "E:\Test Manuscript Pool\\"
+TempFileList = os.listdir("E:\Test Manuscript Pool")
+TempFileList2 = []
+for each in TempFileList:
+    TruePath = PathPrefix+ each
+    TempFileList2.append(TruePath)
+
+WholeWorkList = str(len(TempFileList2)) + " case(s)  in  total \n\n Programmed  by  Kinoko"
+Not1 = Notification("AutoKeywords  0.80  started",WholeWorkList)
+ReportCount = 0
+WholeBadCaseCount = 0
+WholeCaseStatus=[]
+CasePointer = 1
+ProcessSuccessful = 1
+
+for eachpath in TempFileList2:
+    print("----------------------")
+    print(eachpath)
+    print("Keywords:")
+    print("----------------------")
+    ThisCaseSkip = 0
+    text = docx2txt.process(eachpath)
+    FilePath = eachpath
+    Temp1 = keywords.keywords(text)
+    Temp2 = Temp1.split("\n")
+    Temp3 = Temp2[0:49]
+    for each in Temp3:
+        Length = len(each)
+        if Length == 1:
+            Temp3.remove(each)
+        if each in CustomizedDictionary:
+            Temp3.remove(each)
+    print(Temp3)
+    print("----------------------")
+    print("Searching Springer for Possible Frequences")
+    Temp4=[]
+    
+    BadWordsCount = 0
+    
+    for each in Temp3:
+        TempResult = Search_Hits(eachpath,each)
+        Temp4.append(TempResult)
+        if TempResult == -1:
+            BadWordsCount+=1
+        if BadWordsCount >2:
+            ThisCaseSkip = 1
+            WholeBadCaseCount+=1
+            break
+    
+    if ThisCaseSkip==1:
+        if CasePointer ==len(TempFileList2):
+            ThisCase = [eachpath,"Failed"]
+            WholeCaseStatus.append(ThisCase)
+            TerminatedNoti1 = "Bad  Network  Connection \n\n All  process  Terminated,  please  check  network  conditions."
+            TerminatedNoti2 = "All processed cases: \n\n"
+            for each in WholeCaseStatus:
+                TerminatedNoti2 = each[0] +"  " +each[1]+"\n\n"
+                TerminatedNoti = TerminatedNoti1 + "\n\n" + TerminatedNoti2
+            U= Notification("Terminated",TerminatedNoti)
+            ProcessSuccessful = 0
+            break
+        else:
+            SkipNoti = "Case  Skipped \n\n  Case  Path  is  " + eachpath
+            H = Notification("Skipped",SkipNoti)
+            ThisCase = [eachpath,"Failed"]
+            WholeCaseStatus.append(ThisCase)
+            CasePointer +=1
+            continue
+    
+    if WholeBadCaseCount>len(TempFileList2)/3 and len(TempFileList2)>2:
+        TerminatedNoti1 = "Bad  Network  Connection \n\n All  process  Terminated,  please  check  network  conditions."
+        TerminatedNoti2 = "All processed cases: \n\n"
+        for each in WholeCaseStatus:
+            TerminatedNoti2 = each[0] +"  " +each[1]+"\n\n"
+        TerminatedNoti = TerminatedNoti1 + "\n\n" + TerminatedNoti2
+        U= Notification("Terminated",TerminatedNoti)
+        ProcessSuccessful = 0
+        break
+        
+    DictForThisCase ={}
+    i = 0
+    for each in Temp3:
+        DictForThisCase[each]=Temp4[i]
+        i+=1
+    DictAscending1 = sorted(DictForThisCase.items(),key=lambda x:x[1])
+    DictAscending=[]
+    for each in DictAscending1:
+        Reform = each[0]
+        DictAscending.append(Reform)
+    print("----------------------")
+    print("Current Result for",FilePath)
+    print(DictAscending)
+    print("Exporting Data To Txt")
+    FileName1 = FilePath.split("\\")
+    FileName2 = FileName1[-1]
+    FileName3 = FileName2.split()
+    FileName = FileName3[0]
+    
+    if BadWordsCount >0 and BadWordsCount <3:
+        LogPath=  "E:\Test Manuscript Pool\\"+FileName+"-FlawedResult.txt"
+        Log= open(LogPath,'w')
+        print(FilePath,file=Log)
+        print("---------------------------------------",file=Log)
+        print("TextRank",file=Log)
+        print(Temp3,file=Log)
+        print("---------------------------------------",file=Log)
+        print("Adjusted by Springer",file=Log)
+        print(DictAscending,file=Log)
+        print("---------------------------------------",file=Log)
+        print("Original Hits Record",file=Log)
+        print(DictAscending1,file=Log)
+        Log.close()
+        print("Exported!")
+        ThisCase = [eachpath,"Flawed"]
+    else:
+        LogPath=  "E:\Test Manuscript Pool\\"+FileName+"-Result.txt"
+        Log= open(LogPath,'w')
+        print(FilePath,file=Log)
+        print("---------------------------------------",file=Log)
+        print("TextRank",file=Log)
+        print(Temp3,file=Log)
+        print("---------------------------------------",file=Log)
+        print("Adjusted by Springer",file=Log)
+        print(DictAscending,file=Log)
+        print("---------------------------------------",file=Log)
+        Log.close()
+        print("Exported!")
+        ThisCase = [eachpath,"Successful"]
+        
+    CasePointer +=1
+    WholeCaseStatus.append(ThisCase)
+
+if ProcessSuccessful == 1:
+    FinalNoti = "All processed cases: \n\n"
+    for each in WholeCaseStatus:
+        FinalNoti = each[0] +"  " +each[1]+"\n\n"   
+    Z= Notification("All Done", FinalNoti)
+    
