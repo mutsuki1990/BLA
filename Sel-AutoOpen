@@ -1,0 +1,69 @@
+import os
+import re
+import urllib.request
+import time
+from bs4 import BeautifulSoup
+import requests
+from selenium import webdriver
+from time import sleep
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+
+
+def Get_Url(Input_String):
+    Starter = Input_String.find("\"")
+    TempList = list(Input_String)
+    i = 0
+    Ender = 0
+    for each in TempList:
+        if each=="\"":
+            TempIndex = i
+            if TempIndex != Starter:
+                Ender = TempIndex
+                break
+        i+=1
+    TempUrl = Input_String[Starter+1:Ender]
+    TrueUrl ='https://susy.mdpi.com'+ TempUrl
+    return TrueUrl
+
+
+driver = webdriver.Chrome()
+driver.get("https://susy.mdpi.com/user/assigned/status/ongoing")
+driver.find_element_by_id('username').click()
+driver.find_element_by_id('username').clear()
+driver.find_element_by_id('username').send_keys('kinoko.zhang@mdpi.com')
+driver.find_element_by_id('password').click()
+driver.find_element_by_id('password').clear()
+driver.find_element_by_id('password').send_keys('oEp1990X')
+driver.find_element_by_css_selector('.button').click()
+C = driver.find_element_by_css_selector('.manuscript-status-table:nth-child(1) span')
+time.sleep(10)
+OnGoingCase1 =driver.find_elements_by_xpath('//td[4]')
+OnGoingCase2 =driver.find_elements_by_xpath('//td[4]/a/span')
+Links=[]
+Names =[]
+
+for each in OnGoingCase1:
+    Temp1 = each.get_attribute('innerHTML')
+    Temp2 = Get_Url(Temp1)
+    Links.append(Temp2)
+
+
+
+for each in OnGoingCase2:
+    Temp1 = each.get_attribute('innerHTML')
+    Names.append(Temp1)
+      
+    
+print(Links)
+print(Names)
+
+Link = driver.find_element_by_link_text(Names[0])
+action = ActionChains(driver)
+action.move_to_element(Link)
+action.key_down(Keys.CONTROL)
+action.click(Link)
+action.key_up(Keys.CONTROL)
+action.perform()
+NewTab = driver.window_handles
+driver.switch_to_window(NewTab[-1])
