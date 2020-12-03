@@ -1,0 +1,63 @@
+alert("Beginning Merging, Programmed by Mutsuki, Fuck you X, Make sure the Ziyou APP is on")
+
+var OriginalCard = app.activeDocument;
+var Pointer = 1
+var Prefix1 ="大厅."
+var Prefix2 ="大厅"
+var Suffix =".jpg"
+var Path1 = "D:/Output/"
+var samplesFolder = Folder("D:/Inject")
+var fileList = samplesFolder.getFiles("*.jpg")
+var TextColor = new SolidColor
+TextColor.rgb.red = 62
+TextColor.rgb.green = 61
+TextColor.rgb.blue = 61
+
+for (var i=0; i<fileList.length; i++) 
+
+{
+	if (fileList[i] instanceof File) 
+
+		var Filename = Prefix1 + Pointer.toString() + Suffix
+		var IndexNow1 = fileList[i].name.split('.')
+		var IndexNow = IndexNow1[1]
+		var Text1 = Prefix2 + IndexNow 
+		var FileName = Path1 + Prefix2 + IndexNow + Suffix
+        	open(fileList[i])
+		var Now = app.activeDocument
+		Now.artLayers["背景"].copy()
+		app.activeDocument = OriginalCard
+		OriginalCard.paste()
+		var QRCodeCurrent = activeDocument.activeLayer
+		QRCodeCurrent.name = Text1
+		activeDocument.activeLayer.resize(170, 100, AnchorPosition.MIDDLERIGHT);
+		activeDocument.activeLayer.resize(100, 170, AnchorPosition.MIDDLERIGHT);
+		QRCodeCurrent.translate(1.08,2.22)
+		var NewLobby = activeDocument.artLayers.add()
+		NewLobby.kind = LayerKind.TEXT
+		NewLobby.name = Text1
+		var LobbyName = activeDocument.artLayers[Text1].textItem
+		LobbyName.contents = Text1
+		LobbyName.justification = Justification.CENTER
+		LobbyName.size = 15
+		LobbyName.color = TextColor
+		LobbyName.font = "HelloFont-WenYiHei"
+		NewLobby.translate(3.3,2.65)
+		var NewLobbyGroup = activeDocument.layerSets.add()
+		NewLobbyGroup.name = Text1 
+		activeDocument.activeLayer = NewLobby
+		NewLobby.move(NewLobbyGroup, ElementPlacement.INSIDE)
+		activeDocument.activeLayer = QRCodeCurrent
+		QRCodeCurrent.move(NewLobbyGroup, ElementPlacement.INSIDE)
+		Card = new File(FileName)
+		jpgSaveOptions = new JPEGSaveOptions()
+		jpgSaveOptions.embedColorProfile = true
+		jpgSaveOptions.formatOptions = FormatOptions.STANDARDBASELINE
+		jpgSaveOptions.matte = MatteType.NONE
+		jpgSaveOptions.quality = 1
+		app.activeDocument.saveAs(Card, jpgSaveOptions, true, Extension.LOWERCASE)
+		activeDocument.activeLayerset = NewLobbyGroup
+		NewLobbyGroup.visible = false
+
+
+}
